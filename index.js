@@ -3,7 +3,9 @@ const dbConnect = require('./config/dbconnect')
 const authRouter = require('./routes/authRoute.js')
 const productRouter = require('./routes/productRoute.js')
 const blogRouter = require('./routes/blogRoute.js')
-const categoryRouter = require('./routes/categoryRoute.js')
+const productCategoryRouter = require('./routes/productCategoryRoute.js')
+const brandRouter = require('./routes/brandRoute.js')
+const blogCategoryRouter = require('./routes/blogCategoryRoute.js')
 const bodyParser = require('body-parser')
 const { notFound, errorHandler } = require('./middlewares/errorHandler.js')
 const cookieParser = require('cookie-parser')
@@ -22,9 +24,9 @@ app.use(cookieParser())
 app.use('/api/user', authRouter)
 app.use('/api/product', productRouter)
 app.use('/api/blog', blogRouter)
-app.use('/api/category', categoryRouter)
-
-
+app.use('/api/productCategory', productCategoryRouter)
+app.use('/api/blogCategory', blogCategoryRouter)
+app.use('/api/brand', brandRouter)
 
 
 app.use(notFound)

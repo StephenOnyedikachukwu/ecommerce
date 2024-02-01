@@ -1,5 +1,5 @@
 const slugify = require('slugify')
-const product = require('../models/productModel')
+const Product = require('../models/productModel')
 const User = require('../models/userModel')
 const asyncHandler = require('express-async-handler')
 const validateMongoDbId = require('../utils/validateMongodbId')
@@ -110,8 +110,8 @@ const addToWishlist = asyncHandler (async (req, res) => {
     const {productId} = req.body
     try {
         const user = await User.findById(_id)
-        const alreadyAdded = user.wishlist.includes(productId)
-        if (alreadyAdded) {
+        const added = user.wishlist.includes(productId)
+        if (added) {
             let user = await User.findByIdAndUpdate(_id, {
                 $pull:{wishlist:productId}
             }, {new:true} )
@@ -126,4 +126,45 @@ const addToWishlist = asyncHandler (async (req, res) => {
         throw new Error (error)
     }
 })
-module.exports = {createProduct, getProduct, getProducts, updateProduct, deleteProduct, addToWishlist }
+
+const rating = asyncHandler (async (req, res) => {
+    const {_id} = req.user
+    const {star, productId, comment} = req.body
+   try {
+    const product = await Product.findById(productId)
+
+    let rated = product.ratings.find((userId) => userId.postedby.toString() === _id.toString())
+    if (rated) {
+        const updateRating = await Product.updateOne(
+            {
+                ratings: {$elemMatch: rated},
+            },
+            {
+                $set: {"ratings.$.star": star, "ratings.$.comment": comment}
+            }, {new: true}
+        )
+    }else {
+        const rateProduct = await Product.findByIdAndUpdate(productId, {
+            $push: {ratings:{
+                star:star, 
+                comment:comment, 
+                postedby:_id,
+            }
+            }, 
+               
+        }, {new: true})
+    }
+    const getAllRatings = await Product.findById(productId)
+    let totalRatings = getAllRatings.ratings.length
+    let sum = getAllRatings.ratings.map((item)=>item.star).reduce((prev, curr) => prev + curr, 0)
+    let actualRating = Math.round(sum/totalRatings)
+    let finalProduct = await Product.findByIdAndUpdate(productId,{
+        totalRating: actualRating
+    }, {mew: true})
+    res.json(finalProduct)
+   } catch (error) {
+    throw new Error (error)
+   }
+})
+module.exports = {createProduct, getProduct, getProducts, updateProduct, deleteProduct, 
+    addToWishlist, rating }

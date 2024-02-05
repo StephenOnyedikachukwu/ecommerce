@@ -2,6 +2,8 @@ const asyncHandler = require('express-async-handler')
 const Blog = require('../models/blogModel')
 const User = require('../models/userModel')
 const validateMongoDbId = require('../utils/validateMongodbId')
+const cloudinaryUploadImg = require('../utils/cloudinary')
+const fs = require('fs')
 
 const createBlog = asyncHandler (async(req,res) => {
     try {
@@ -137,6 +139,7 @@ const uploadImages = asyncHandler (async (req, res) => {
             const {path} = file
             const newPath = await uploader(path)
             urls.push(newPath)
+            // fs.unlinkSync(path)
         }
         const findBlog = await Blog.findByIdAndUpdate(id, 
             {images: urls.map(file => {return file})}, {new: true})

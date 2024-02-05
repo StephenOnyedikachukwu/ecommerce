@@ -5,13 +5,14 @@ const asyncHandler = require('express-async-handler')
 const validateMongoDbId = require('../utils/validateMongodbId')
 const { json } = require('body-parser')
 const cloudinaryUploadImg = require('../utils/cloudinary')
+const fs = require('fs')
 
 const createProduct = asyncHandler (async (req, res) => {
     try {
         if (req.body.title) {
             req.body.slug = slugify(req.body.title)
         }
-        const newProduct = await product.create(req.body)
+        const newProduct = await Product.create(req.body)
         res.json(newProduct)
     } catch (error) {
         throw new Error (error)
@@ -25,7 +26,7 @@ const updateProduct = asyncHandler (async (req, res) => {
         if (req.body.title) {
             req.body.slug = slugify(req.body.title)
         }
-        const updateProduct = await product.findOneAndUpdate({_id:id}, req.body, {
+        const updateProduct = await Product.findOneAndUpdate({_id:id}, req.body, {
             new:true,
         })
         res.json(updateProduct)
@@ -38,7 +39,7 @@ const deleteProduct = asyncHandler (async (req, res) => {
     const id = req.params.id
     // validateMongoDbId(id)
     try {
-        const deleteProduct = await product.findOneAndDelete({_id:id})
+        const deleteProduct = await Product.findOneAndDelete({_id:id})
         res.json(deleteProduct)
     } catch (error) {
         throw new Error (error)
@@ -48,7 +49,7 @@ const deleteProduct = asyncHandler (async (req, res) => {
 const getProduct = asyncHandler (async (req, res) => {
     const {id} = req.params
     try {
-        const findProduct = await product.findById(id)
+        const findProduct = await Product.findById(id)
         res.json(findProduct)
     } catch (error) {
         throw new Error (error)
@@ -67,7 +68,7 @@ const getProducts = asyncHandler (async (req, res) => {
         let queryStr = JSON.stringify(queryObj)
         queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`)
 
-        let query = product.find(JSON.parse(queryStr));
+        let query = Product.find(JSON.parse(queryStr));
 
         //sorting
         if(req.query.sort) {
@@ -92,7 +93,7 @@ const getProducts = asyncHandler (async (req, res) => {
         const skip = (page - 1) * limit
         query = query.skip(skip).limit(limit)
         if(req.query.page) {
-            const productCount = await product.countDocuments()
+            const productCount = await Product.countDocuments()
             if(skip>= productCount) throw new Error ('This page does not exist')
         }
         console.log(page, limit, skip);
@@ -101,28 +102,6 @@ const getProducts = asyncHandler (async (req, res) => {
         res.json(products);
         // const findProducts = await product.find(req.query)
         // res.json(findProducts)
-    } catch (error) {
-        throw new Error (error)
-    }
-})
-
-const addToWishlist = asyncHandler (async (req, res) => {
-    const {_id} = req.user
-    const {productId} = req.body
-    try {
-        const user = await User.findById(_id)
-        const added = user.wishlist.includes(productId)
-        if (added) {
-            let user = await User.findByIdAndUpdate(_id, {
-                $pull:{wishlist:productId}
-            }, {new:true} )
-            res.json(user)
-        } else {
-            let user = await User.findByIdAndUpdate(_id, {
-                $push:{wishlist:productId}
-            }, {new:true} )
-            res.json(user)
-        }
     } catch (error) {
         throw new Error (error)
     }
@@ -169,7 +148,7 @@ const rating = asyncHandler (async (req, res) => {
 })
 
 const uploadImages = asyncHandler (async (req, res) => {
-    const {id} = req.params
+    const {id} = req.params 
     try {
         const uploader = (path) => cloudinaryUploadImg(path, 'images')
         const urls = []
@@ -178,9 +157,11 @@ const uploadImages = asyncHandler (async (req, res) => {
             const {path} = file
             const newPath = await uploader(path)
             urls.push(newPath)
+            // fs.unlinkSync(path)
         }
         const findProduct = await Product.findByIdAndUpdate(id, 
-            {images: urls.map(file => {return file})}, {new: true})
+            {images: urls.map(file => {return file})},
+            {new: true})
         res.json (findProduct)
     } catch (error) {
         throw new Error (error)
@@ -188,5 +169,5 @@ const uploadImages = asyncHandler (async (req, res) => {
 })
 
 
-module.exports = {createProduct, getProduct, getProducts, updateProduct, deleteProduct, 
-    addToWishlist, rating, uploadImages }
+module.exports = {createProduct, getProduct, getProducts, updateProduct, deleteProduct,
+    rating, uploadImages }

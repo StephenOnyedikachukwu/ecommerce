@@ -1,11 +1,15 @@
 const { generateToken } = require('../config/jwtToken.js');
 const User = require('../models/userModel.js');
+const Product = require('../models/productModel.js');
+const Cart = require('../models/cartModel.js');
+const Order = require('../models/orderModel.js');
 const asyncHandler = require('express-async-handler');
-const { validateMongoDbId } = require('../utils/validateMongodbId.js');
+const  validateMongoDbId  = require('../utils/validateMongodbId.js');
 const { generateRefreshToken } = require('../config/refreshToken.js');
 const jwt = require('jsonwebtoken');
 const sendEmail = require('./emailController.js');
 const crypto = require('crypto');
+const { log } = require('console');
 
 //create user
 const createUser = asyncHandler(async (req, res) => {
@@ -133,6 +137,23 @@ const updateUser = asyncHandler(async(req, res) => {
         throw new Error (error)
     }
 })
+
+const saveAddress = asyncHandler (async (req, res, next) => {
+    const {_id} = req.user
+    validateMongoDbId(_id)
+    try {
+        const updateUser = await User.findByIdAndUpdate(_id, {
+            address: req?.body?.address,
+        }, {
+            new: true,
+        })
+        res.json(updateUser)
+    } catch (error) {
+        throw new Error (error)
+    }
+})
+
+
 //get all users
 const getAllUsers = asyncHandler(async(req, res) => {
     try {
@@ -149,7 +170,7 @@ const getUser = asyncHandler (async(req, res) => {
     validateMongoDbId(id)
     try {
         const getUser = await User.findById(id)
-        res.json({ getUser, })
+        res.json({ getUser})
     } catch (error) {
         throw new Error (error)
     }
@@ -240,38 +261,53 @@ const resetPassword = asyncHandler (async(req,res) =>{
     res.json(user)
 })
 
-const addToWishlist = asyncHandler (async (req, res) => {
-    const {_id} = req.user
-    const {productId} = req.body
+const getWishlist = asyncHandler(async (req, res) => {
+    const { _id } = req.user;
     try {
-        const user = await User.findById(_id)
-        const added = user.wishlist.includes(productId)
-        if (added) {
-            let user = await User.findByIdAndUpdate(_id, {
-                $pull:{wishlist:productId}
-            }, {new:true} )
-            res.json(user)
-        } else {
-            let user = await User.findByIdAndUpdate(_id, {
-                $push:{wishlist:productId}
-            }, {new:true} )
-            res.json(user)
-        }
+      const findUser = await User.findById(_id).populate("wishlist");
+      res.json(findUser);
     } catch (error) {
-        throw new Error (error)
+      throw new Error(error);
     }
-})
+  });
 
-const getWishlist = asyncHandler (async (req, res) => {
-    const {_id} = req.user
+  const userCart = asyncHandler (async (req, res) => {
+    const {cart} = req.body
+    const { _id }  = req.user
+    validateMongoDbId(_id)
     try {
-        const findUser = await User.findById(_id)
-        res.json(findUser)
+        let products = []
+        const user = await User.findById(_id)
+        //check if product exists in cart
+        const productExists = await Cart.findOne({orderby: user._id})
+        if(productExists) {
+            productExists.remove()
+        }
+        for (let i = 0; i < cart.length; i++) {
+            let object = {}
+            object.prduct = cart[i]._id
+            object.count = cart[i].count
+            object.color = cart[i].color
+            let getPrice = await Product.findById(cart[i]._id).select('price').exec()
+            object.price = getPrice.price
+            products.push(object)
+        }
+        let cartTotal = 0
+        for (i = 0; i < products.length; i++) {
+            cartTotal = cartTotal + products[i].price * products[i].count
+        }
+        let newCart = await new Cart({
+            products,
+            cartTotal,
+            orderby: user?._id
+        }). save()
+        res.json(newCart)
     } catch (error) {
         throw new Error (error)
     }
-})
+  })
 
 module.exports = { createUser, loginUserCtrl, loginAdmin, getAllUsers, getUser, deleteUser, updateUser, 
+    saveAddress, userCart,
     blockUSer, unblockUSer, handleRefreshToken, logout, updatePassword, forgotPasswordToken, 
-    resetPassword, addToWishlist, getWishlist }
+    resetPassword, getWishlist}

@@ -107,6 +107,28 @@ const getProducts = asyncHandler (async (req, res) => {
     }
 })
 
+const addToWishlist = asyncHandler (async (req, res) => {
+    const {_id} = req.user
+    const {productId} = req.body
+    try {
+        const user = await User.findById(_id)
+        const added = user.wishlist.includes(productId)
+        if (added) {
+            let user = await User.findByIdAndUpdate(_id, {
+                $pull:{wishlist:productId}
+            }, {new:true} )
+            res.json(user)
+        } else {
+            let user = await User.findByIdAndUpdate(_id, {
+                $push:{wishlist:productId}
+            }, {new:true} )
+            res.json(user)
+        }
+    } catch (error) {
+        throw new Error (error)
+    }
+})
+
 const rating = asyncHandler (async (req, res) => {
     const {_id} = req.user
     const {star, productId, comment} = req.body
@@ -170,4 +192,4 @@ const uploadImages = asyncHandler (async (req, res) => {
 
 
 module.exports = {createProduct, getProduct, getProducts, updateProduct, deleteProduct,
-    rating, uploadImages }
+   addToWishlist, rating, uploadImages }
